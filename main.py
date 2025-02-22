@@ -6,7 +6,9 @@ import sqlite3
 conn = sqlite3.connect("libmovie.db")
 c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT)''')
-c.execute('''CREATE TABLE IF NOT EXISTS favorites (username TEXT, movie_id INTEGER)''')
+c.execute('''CREATE TABLE IF NOT EXISTS favorites (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL, movie_id INTEGER NOT NULL, FOREIGN KEY (username) REFERENCES users(username))''')
+c.execute('''CREATE TABLE IF NOT EXISTS movies (id INTEGER PRIMARY KEY, title TEXT, poster TEXT, description TEXT, url TEXT)''')
+c.execute('''CREATE TABLE IF NOT EXISTS comments (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL, movie_id INTEGER NOT NULL, comment TEXT NOT NULL, FOREIGN KEY (username) REFERENCES users(username))''')
 conn.commit()
 
 movies_db = [
@@ -77,6 +79,16 @@ else:
                     st.video(movie["url"])
                 
                 # قسم التعليقات
-                st.text_area("💬 أضف تعليقك", key=f"comment_{movie['id']}")
+                comment_text = st.text_area("💬 أضف تعليقك", key=f"comment_{movie['id']}")
                 if st.button("إرسال التعليق", key=f"submit_{movie['id']}"):
-                    st.success("تم إرسال تعليقك!")
+                    if comment_text:
+                        c.execute("INSERT INTO comments (username, movie_id, comment) VALUES (?, ?, ?)", (st.session_state.username, movie['id'], comment_text))
+                        conn.commit()
+                        st.success("تم إرسال تعليقك!")
+                
+                # عرض التعليقات السابقة
+                st.subheader("📢 التعليقات")
+                c.execute("SELECT username, comment FROM comments WHERE movie_id=?", (movie['id'],))
+                comments = c.fetchall()
+                for user, comment in comments:
+                    st.write(f"**{user}:** {comment}")
